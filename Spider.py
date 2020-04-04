@@ -1,9 +1,11 @@
 import requests
 from bs4 import BeautifulSoup
 import json
+import os
+
 
 def get_real_time_data(key):
-    url = 'https://search.smzdm.com/'
+    url = 'https://search.smzdm.com/?c=home&s=%E6%BC%B1%E5%8F%A3%E6%B0%B4&order=time&v=b'
     headers = {
         'Host': 'search.smzdm.com',
         'Connection': 'keep-alive',
@@ -24,10 +26,23 @@ def get_real_time_data(key):
         's': key,
         'order': 'time'
     }
-    r = requests.get(url=url, params=params, headers=headers, verify=False)
-    soup = BeautifulSoup(r.text, 'html.parser')
+
+    s = requests.session()
+    s.keep_alive = False
+    r = requests.get(url=url, params=params, headers=headers, verify=False).content.decode("utf-8").encode("utf-8")
+    save_path = u"页面"
+    filename = u""+key
+    soup = BeautifulSoup(r, 'html.parser')
+    StringListSave(save_path, filename, r)
 
     print(soup.prettify())
+
+def StringListSave(save_path, filename, slist):
+    if not os.path.exists(save_path):
+        os.makedirs(save_path)
+    path = save_path + "/" + filename + ".json"
+    with open(path, "wb") as fp:
+        fp.write(slist)
 
 
 if __name__ == '__main__':
