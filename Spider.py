@@ -2,7 +2,21 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import os
+import sys
+import json
+import codecs
+import re
+from flask import Flask,request
+app = Flask(__name__)
 
+@app.route('/')
+def index():
+    return "Hello, World, WDNMD!"
+
+@app.route('/api/v1.0/products')
+def get_product_list():
+    pname = request.args['s']
+    return get_real_time_data(pname)
 
 def get_real_time_data(key):
     url = 'https://search.smzdm.com/?c=home&s=%E6%BC%B1%E5%8F%A3%E6%B0%B4&order=time&v=b'
@@ -30,23 +44,90 @@ def get_real_time_data(key):
     s = requests.session()
     s.keep_alive = False
     r = requests.get(url=url, params=params, headers=headers, verify=False).content.decode("utf-8").encode("utf-8")
-    save_path = u"页面"
-    filename = u""+key
     soup = BeautifulSoup(r, 'html.parser')
-    StringListSave(save_path, filename, r)
+    save_path = u"页面"
+    filename = u"" + key + '.html'
+    # StringListSave(save_path, filename, r)
 
-    print(soup.prettify())
+    subcate_tab_list = soup.find('ul', class_="subcate-tab-list")
+    channelTag = []
+    for childXml in subcate_tab_list :
+        channelTag.append(childXml.string)
+        # print(childXml.string) 
+    
+    # 前三个有意义 按顺序分别表示 分类 商城 品牌
+    J_filter_items = soup.find_all('div', class_="filter-items J_filter_items")
+
+    # getCategory(J_filter_items)
+
+    # getMall(J_filter_items)
+
+    # getBrand(J_filter_items)
+
+
+    itemxmllist = soup.find_all('div', class_="z-feed-content")
+    # print(itemlist[0].find('h5'))
+    itemlist = []
+    for item in itemxmllist:
+        # print(item.find('h5'))
+        h5 = item.find('h5')
+        if h5 != None:
+            itemDetail = {}
+            itemProperty = h5.find_all('a')
+            itemDetail['name'] = itemProperty[0]['title']
+            if len(itemProperty)>1:
+                itemDetail['price'] = itemProperty[1].find('div',class_="z-highlight").text
+                itemDetail['href'] = itemProperty[1]['href']
+                itemDetail['id'] = itemProperty[1]['href'].split('https://www.smzdm.com/p/')[1].split('/')[0]
+                itemlist.append(itemDetail)
+    print(itemlist)
+
+    save_path = u"页面"
+    filename = u""+key+'.json'
+    listJsonStr = json.dumps(itemlist, ensure_ascii=False).encode("utf-8")
+    # StringListSave(save_path, filename, listJsonStr)
+    return listJsonStr
+
+def getBrand(J_filter_items):
+    brand = []
+    for childXml in J_filter_items[2].find_all('a') :
+        brand.append(childXml.string)
+        print(childXml.string)
+
+def getMall(J_filter_items):
+    mall = []
+    for childXml in J_filter_items[1].find_all('a') :
+        mall.append(childXml.string)
+        print(childXml.string)
+    return mall
+
+def getCategory(J_filter_items):
+    category = []
+    for childXml in J_filter_items[0].find_all('a') :
+        category.append(childXml.string)
+        print(childXml.string)
+    return category
+
+    # print(soup.prettify())
 
 def StringListSave(save_path, filename, slist):
     if not os.path.exists(save_path):
         os.makedirs(save_path)
-    path = save_path + "/" + filename + ".json"
+    path = save_path + "/" + filename
     with open(path, "wb") as fp:
         fp.write(slist)
 
+def listToJson(lst):
+    import json
+    import numpy as np
+    keys = [str(x) for x in np.arange(len(lst))]
+    list_json = dict(zip(keys, lst))
+    str_json = json.dumps(list_json, indent=2, ensure_ascii=False)  # json转为string
+    return str_json
 
 if __name__ == '__main__':
-    get_real_time_data('漱口水')
+    # get_real_time_data('漱口水')
+    app.run(port=8091, debug=True)
 
 # feed-main-list => ul
 # li is product
